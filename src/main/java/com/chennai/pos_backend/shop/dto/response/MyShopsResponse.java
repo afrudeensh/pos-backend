@@ -1,0 +1,39 @@
+package com.chennai.pos_backend.shop.dto.response;
+
+import com.chennai.pos_backend.auth.entity.User;
+import com.chennai.pos_backend.auth.enums.Role;
+import com.chennai.pos_backend.shop.entity.Shop;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+import java.util.List;
+
+@Getter
+@AllArgsConstructor
+public class MyShopsResponse {
+
+    private Long userId;
+    private String username;
+    private String name;
+    private String email;
+    private String ownerPhoneNo;
+    private Role role;
+    private List<ShopResponse> shops;
+
+    public static MyShopsResponse from(
+            User user,
+            List<Shop> shops
+    ) {
+        return new MyShopsResponse(
+                user.getId(),
+                user.getUsername(),
+                user.getFullName(),
+                user.getEmail(),
+                user.getPhone(),
+                user.getRole(),
+                shops.stream()
+                        .map(ShopResponse::from)
+                        .toList()
+        );
+    }
+}

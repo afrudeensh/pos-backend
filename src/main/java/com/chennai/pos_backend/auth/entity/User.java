@@ -39,6 +39,9 @@ public class User extends BaseEntity {
     @Column(nullable = false, unique = true)
     private String username;
 
+    @Column(nullable = false, unique = true)
+    private String email;
+
     /** BCrypt password hash. Never store or return plain-text passwords. */
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
