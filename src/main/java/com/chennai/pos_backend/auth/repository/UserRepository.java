@@ -20,4 +20,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByPhone(String phone);
 
     List<User> findByRole(Role role);
+
+    // NEW: used for login — matches whichever field the identifier belongs to
+    Optional<User> findByUsernameOrEmailOrPhone(String username, String email, String phone);
 }

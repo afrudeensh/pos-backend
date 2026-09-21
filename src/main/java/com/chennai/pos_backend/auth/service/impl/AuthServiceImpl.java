@@ -1,5 +1,6 @@
 package com.chennai.pos_backend.auth.service.impl;
 
+import com.chennai.pos_backend.auth.dto.request.ChangePasswordRequest;
 import com.chennai.pos_backend.auth.dto.request.LoginRequest;
 import com.chennai.pos_backend.auth.dto.request.RegisterRequest;
 import com.chennai.pos_backend.auth.dto.response.AuthResponse;
@@ -18,6 +19,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -109,8 +112,12 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse login(LoginRequest request) {
 
-        // 1. Find user
-        User user = userRepository.findByEmail(request.getEmail())
+        // 1. Find user by username, email, or phone
+        User user = userRepository.findByUsernameOrEmailOrPhone(
+                        request.getIdentifier(),
+                        request.getIdentifier(),
+                        request.getIdentifier()
+                )
                 .orElseThrow(() -> new ApiException(
                         "Invalid email or password",
                         HttpStatus.UNAUTHORIZED
@@ -147,5 +154,74 @@ public class AuthServiceImpl implements AuthService {
                 token,
                 UserResponse.from(user)
         );
+    }
+
+    @Override
+    public UserResponse getCurrentUser() {
+        Long userId = currentUser.getUserId();
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(()-> new ApiException("User not found",
+                        HttpStatus.NOT_FOUND));
+        return UserResponse.from(user);
+    }
+
+    @Override
+    public void changePassword(ChangePasswordRequest request) {
+        Long userId = currentUser.getUserId();
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(()-> new ApiException("User not found",
+                        HttpStatus.NOT_FOUND));
+
+        // 1. Verify current password
+        if(!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+            throw new ApiException("Current password is incorrect",HttpStatus.UNAUTHORIZED);
+        }
+
+        // 2. Prevent setting the same password
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPasswordHash())) {
+            throw new ApiException(
+                    "New password must be different from current password",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        // 3. Update
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+    }
+
+    @Override
+    public List<UserResponse> listUsers(Role role) {
+        List<User> users = (role != null)
+                ? userRepository.findByRole(role)
+                : userRepository.findAll();
+
+        return users.stream()
+                .map(UserResponse::from)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public void setUserActive(Long id, boolean active) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ApiException(
+                        "User not found",
+                        HttpStatus.NOT_FOUND
+                ));
+
+        // Prevent an admin from deactivating themselves and locking everyone out
+        if (user.getId().equals(currentUser.getUserId()) && !active) {
+            throw new ApiException(
+                    "You cannot deactivate your own account",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        user.setActive(active);
+        userRepository.save(user);
     }
 }
